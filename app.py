@@ -8,6 +8,7 @@ import os
 import io
 import tempfile
 import subprocess
+import platform
 
 app = Flask(__name__, template_folder="templates")
 CORS(app)
@@ -67,7 +68,13 @@ def replace_text(doc, values):
 # =====================================================
 def convert_to_pdf(docx_path, output_dir):
 
-    libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
+    # Windows local machine
+    if platform.system() == "Windows":
+        libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
+
+    # Linux server (Render)
+    else:
+        libreoffice_path = "libreoffice"
 
     command = [
         libreoffice_path,
@@ -85,7 +92,6 @@ def convert_to_pdf(docx_path, output_dir):
     pdf_path = os.path.join(output_dir, pdf_name)
 
     return pdf_path
-
 # =====================================================
 # HOME PAGE
 # =====================================================
