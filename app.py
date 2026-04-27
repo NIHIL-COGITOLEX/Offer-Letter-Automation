@@ -5,7 +5,6 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 
 import os
-import io
 import tempfile
 import subprocess
 import platform
@@ -14,10 +13,13 @@ app = Flask(__name__, template_folder="templates")
 CORS(app)
 
 # =====================================================
-# ROLE -> DOCX TEMPLATE
+# BASE DIR
 # =====================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# =====================================================
+# ROLE -> DOCX TEMPLATE
+# =====================================================
 TEMPLATES = {
     "telecaller": os.path.join(BASE_DIR, "templates_docx", "telecaller.docx"),
     "team_leader": os.path.join(BASE_DIR, "templates_docx", "team_leader.docx"),
@@ -44,16 +46,94 @@ def format_date(date_str):
 
 
 # =====================================================
+# NUMBER TO WORDS
+# Because humans love writing numbers twice.
+# =====================================================
+ONES = [
+    "", "One", "Two", "Three", "Four", "Five", "Six",
+    "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
+    "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen"
+]
+
+TENS = [
+    "", "", "Twenty", "Thirty", "Forty",
+    "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+]
+
+
+def two_digit_words(n):
+    if n < 20:
+        return ONES[n]
+    return TENS[n // 10] + (" " + ONES[n % 10] if n % 10 else "")
+
+
+def three_digit_words(n):
+    word = ""
+
+    if n >= 100:
+        word += ONES[n // 100] + " Hundred"
+        n %= 100
+        if n:
+            word += " "
+
+    if n:
+        word += two_digit_words(n)
+
+    return word.strip()
+
+
+def number_to_words_indian(n):
+    if n == 0:
+        return "Zero"
+
+    parts = []
+
+    crore = n // 10000000
+    n %= 10000000
+
+    lakh = n // 100000
+    n %= 100000
+
+    thousand = n // 1000
+    n %= 1000
+
+    hundred = n
+
+    if crore:
+        parts.append(two_digit_words(crore) + " Crore")
+
+    if lakh:
+        parts.append(two_digit_words(lakh) + " Lakh")
+
+    if thousand:
+        parts.append(two_digit_words(thousand) + " Thousand")
+
+    if hundred:
+        parts.append(three_digit_words(hundred))
+
+    return " ".join(parts).strip()
+
+
+def format_salary(value):
+    amount = int(str(value).replace(",", "").strip())
+
+    formatted_number = f"{amount:,}"
+    words = number_to_words_indian(amount).lower()
+
+    return f"{formatted_number} ({words})"
+
+
+# =====================================================
 # REPLACE TEXT INSIDE DOCX
 # =====================================================
 def replace_text(doc, values):
-    # Paragraphs
+
     for para in doc.paragraphs:
         for key, val in values.items():
             if key in para.text:
                 para.text = para.text.replace(key, val)
 
-    # Tables
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
@@ -63,8 +143,7 @@ def replace_text(doc, values):
 
 
 # =====================================================
-# DOCX -> PDF USING LIBREOFFICE
-# Works on Render / Linux / Cloud
+# DOCX -> PDF
 # =====================================================
 def convert_to_pdf(docx_path, output_dir):
 
@@ -90,7 +169,7 @@ def convert_to_pdf(docx_path, output_dir):
 
 
 # =====================================================
-# HOME PAGE
+# HOME
 # =====================================================
 @app.route("/")
 def home():
@@ -107,6 +186,7 @@ def generate():
 
         required_fields = [
             "name",
+            "employee_code",
             "phone",
             "address",
             "role",
@@ -130,41 +210,40 @@ def generate():
         if not os.path.exists(template_path):
             return jsonify({"error": "Template file not found"}), 500
 
-        # Load template
+        # Load DOCX Template
         doc = Document(template_path)
 
         joining_date = format_date(data["joining"])
         today_date = datetime.now().strftime("%d %B %Y")
+        salary_text = format_salary(data["salary"])
 
         values = {
             "{{name}}": data["name"],
+            "{{employee_code}}": data["employee_code"],
             "{{phone}}": data["phone"],
             "{{address}}": data["address"],
             "{{branch_address}}": BRANCHES.get(branch, ""),
-            "{{salary}}": data["salary"],
+            "{{salary}}": salary_text,
             "{{joining}}": joining_date,
             "{{date}}": today_date
         }
 
         replace_text(doc, values)
 
-        # temp folder because cloud hosting hates permanent storage
         with tempfile.TemporaryDirectory() as temp_dir:
 
             safe_name = secure_filename(data["name"])
             docx_path = os.path.join(temp_dir, f"{safe_name}.docx")
 
-            # Save edited DOCX internally
             doc.save(docx_path)
 
-            # Convert to PDF
             pdf_path = convert_to_pdf(docx_path, temp_dir)
 
-            # Return PDF inline for browser preview
             with open(pdf_path, "rb") as f:
                 pdf_bytes = f.read()
 
             response = Response(pdf_bytes, mimetype="application/pdf")
+
             response.headers["Content-Disposition"] = (
                 f'inline; filename="{safe_name}_offer_letter.pdf"'
             )
@@ -173,8 +252,13 @@ def generate():
 
     except subprocess.CalledProcessError:
         return jsonify({
-            "error": "PDF conversion failed. LibreOffice not installed on server."
+            "error": "PDF conversion failed. LibreOffice threw a tantrum."
         }), 500
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid salary amount."
+        }), 400
 
     except Exception as e:
         return jsonify({
