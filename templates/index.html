@@ -37,7 +37,7 @@
         }
 
         .wrapper {
-            max-width: 780px;
+            max-width: 820px;
             margin: auto;
         }
 
@@ -142,9 +142,19 @@
                 0 0 25px rgba(255, 30, 45, .10);
         }
 
+        input[type="date"] {
+            cursor: pointer;
+        }
+
         select option {
             background: #111111;
             color: white;
+        }
+
+        .hint {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--muted);
         }
 
         .btn {
@@ -259,13 +269,25 @@
                         </div>
 
                         <div class="field">
+                            <label>Employee Code</label>
+                            <input type="text" id="employee_code" placeholder="Enter employee code">
+                        </div>
+
+                        <div class="field">
                             <label>Phone Number</label>
                             <input type="tel" id="phone" placeholder="Enter phone number">
                         </div>
 
                         <div class="field">
                             <label>Salary (₹)</label>
-                            <input type="number" id="salary" placeholder="Enter monthly salary">
+                            <input type="text" id="salary" placeholder="Enter monthly salary">
+                            <div class="hint">Auto formats like 20,000 because civilization advanced.</div>
+                        </div>
+
+                        <div class="field">
+                            <label>Joining Date</label>
+                            <input type="date" id="joining">
+                            <div class="hint">Tap to open calendar.</div>
                         </div>
 
                         <div class="field full">
@@ -295,11 +317,6 @@
                             </select>
                         </div>
 
-                        <div class="field full">
-                            <label>Joining Date</label>
-                            <input type="date" id="joining">
-                        </div>
-
                     </div>
 
                     <button type="button" class="btn" id="generateBtn" onclick="generatePDF()">
@@ -319,6 +336,19 @@
     </div>
 
     <script>
+        const salaryInput = document.getElementById("salary");
+
+        salaryInput.addEventListener("input", function () {
+            let raw = this.value.replace(/,/g, "").replace(/\D/g, "");
+
+            if (!raw) {
+                this.value = "";
+                return;
+            }
+
+            this.value = Number(raw).toLocaleString("en-IN");
+        });
+
         async function generatePDF() {
 
             const btn = document.getElementById("generateBtn");
@@ -326,11 +356,12 @@
 
             const data = {
                 name: document.getElementById("name").value.trim(),
+                employee_code: document.getElementById("employee_code").value.trim(),
                 phone: document.getElementById("phone").value.trim(),
                 address: document.getElementById("address").value.trim(),
                 role: document.getElementById("role").value,
                 branch: document.getElementById("branch").value,
-                salary: document.getElementById("salary").value.trim(),
+                salary: document.getElementById("salary").value.replace(/,/g, "").trim(),
                 joining: document.getElementById("joining").value
             };
 
@@ -358,20 +389,26 @@
 
                 if (!response.ok) {
                     let errorText = "Failed to generate PDF";
+
                     try {
                         const err = await response.json();
                         errorText = err.error || errorText;
                     } catch (e) { }
+
                     throw new Error(errorText);
                 }
 
                 const blob = await response.blob();
                 const fileURL = URL.createObjectURL(blob);
 
-                window.open(fileURL, "_blank");
+                window.location.href = fileURL;
 
                 status.className = "status success";
                 status.innerText = "PDF generated successfully.";
+
+                setTimeout(() => {
+                    document.getElementById("offerForm").reset();
+                }, 1000);
 
             } catch (error) {
                 status.className = "status error";
