@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALFA TZA LLP | Offer Letter Generator</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --red: #ff1e2d;
+            --red-dark: #c70016;
+            --white: #ffffff;
+            --black: #050505;
+            --card: #111111;
+            --card2: #171717;
+            --border: rgba(255, 255, 255, 0.08);
+            --muted: #a1a1aa;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top right, rgba(255, 30, 45, 0.22), transparent 25%),
+                radial-gradient(circle at bottom left, rgba(255, 30, 45, 0.14), transparent 22%),
+                linear-gradient(135deg, #000000, #090909, #0d0d0d);
+            color: var(--white);
+            padding: 24px;
+        }
+
+        .wrapper {
+            max-width: 780px;
+            margin: auto;
+        }
+
+        .card {
+            background: linear-gradient(145deg, rgba(17, 17, 17, .95), rgba(10, 10, 10, .95));
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow:
+                0 25px 70px rgba(0, 0, 0, .55),
+                0 0 0 1px rgba(255, 255, 255, .03),
+                0 0 50px rgba(255, 30, 45, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .topbar {
+            text-align: center;
+            padding: 34px 24px 28px;
+            background:
+                linear-gradient(180deg, rgba(255, 30, 45, .06), transparent),
+                linear-gradient(135deg, #111111, #090909);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            width: 170px;
+            max-width: 100%;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 8px 20px rgba(255, 30, 45, 0.28));
+        }
+
+        .title {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: .4px;
+        }
+
+        .title span {
+            color: var(--red);
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 14px;
+            letter-spacing: .3px;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .full {
+            grid-column: span 2;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #f4f4f5;
+            letter-spacing: .3px;
+        }
+
+        .field input,
+        .field textarea,
+        .field select {
+            width: 100%;
+            padding: 14px 15px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, #1a1a1a, #111111);
+            color: var(--white);
+            font-size: 15px;
+            outline: none;
+            transition: .22s ease;
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 95px;
+        }
+
+        .field input::placeholder,
+        .field textarea::placeholder {
+            color: #6b7280;
+        }
+
+        .field input:focus,
+        .field textarea:focus,
+        .field select:focus {
+            border-color: rgba(255, 30, 45, .7);
+            box-shadow:
+                0 0 0 4px rgba(255, 30, 45, .12),
+                0 0 25px rgba(255, 30, 45, .10);
+        }
+
+        select option {
+            background: #111111;
+            color: white;
+        }
+
+        .btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 16px;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            color: white;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: .3px;
+            background: linear-gradient(135deg, var(--red), var(--red-dark));
+            transition: .25s ease;
+            box-shadow: 0 14px 30px rgba(255, 30, 45, .22);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 35px rgba(255, 30, 45, .30);
+        }
+
+        .btn:disabled {
+            opacity: .7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            min-height: 22px;
+            margin-top: 16px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .loading {
+            color: #d4d4d8;
+        }
+
+        .error {
+            color: #ff4d5d;
+        }
+
+        .success {
+            color: var(--success);
+        }
+
+        .footer {
+            text-align: center;
+            color: #71717a;
+            font-size: 13px;
+            padding: 18px 10px 0;
+            letter-spacing: .2px;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 12px;
+            }
+
+            .content {
+                padding: 18px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .full {
+                grid-column: span 1;
+            }
+
+            .title {
+                font-size: 24px;
+            }
+
+            .logo {
+                width: 140px;
+            }
+
+            .btn {
+                font-size: 17px;
+                padding: 17px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="wrapper">
+        <div class="card">
+
+            <div class="topbar">
+                <img src="/static/logo.png" class="logo" alt="ALFA TZA LLP">
+                <div class="title">Offer Letter <span>Generator</span></div>
+                <div class="subtitle">Fast. Sharp. Corporate paperwork, sadly necessary.</div>
+            </div>
+
+            <div class="content">
+
+                <form id="offerForm">
+
+                    <div class="grid">
+
+                        <div class="field full">
+                            <label>Candidate Name</label>
+                            <input type="text" id="name" placeholder="Enter full name">
+                        </div>
+
+                        <div class="field">
+                            <label>Phone Number</label>
+                            <input type="tel" id="phone" placeholder="Enter phone number">
+                        </div>
+
+                        <div class="field">
+                            <label>Salary (₹)</label>
+                            <input type="number" id="salary" placeholder="Enter monthly salary">
+                        </div>
+
+                        <div class="field full">
+                            <label>Address</label>
+                            <textarea id="address" placeholder="Enter full residential address"></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label>Role</label>
+                            <select id="role">
+                                <option value="">Select Role</option>
+                                <option value="telecaller">Telecaller</option>
+                                <option value="team_leader">Team Leader</option>
+                                <option value="backend">Backend</option>
+                                <option value="hr">HR</option>
+                                <option value="data_analyst">Data Analyst</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>Branch</label>
+                            <select id="branch">
+                                <option value="">Select Branch</option>
+                                <option value="vashi">Vashi</option>
+                                <option value="thane">Thane</option>
+                                <option value="virar">Virar</option>
+                            </select>
+                        </div>
+
+                        <div class="field full">
+                            <label>Joining Date</label>
+                            <input type="date" id="joining">
+                        </div>
+
+                    </div>
+
+                    <button type="button" class="btn" id="generateBtn" onclick="generatePDF()">
+                        Generate Offer Letter PDF
+                    </button>
+
+                    <div class="status" id="status"></div>
+
+                </form>
+
+            </div>
+        </div>
+
+        <div class="footer">
+            ALFA TZA LLP • Internal HR Utility
+        </div>
+    </div>
+
+    <script>
+        async function generatePDF() {
+
+            const btn = document.getElementById("generateBtn");
+            const status = document.getElementById("status");
+
+            const data = {
+                name: document.getElementById("name").value.trim(),
+                phone: document.getElementById("phone").value.trim(),
+                address: document.getElementById("address").value.trim(),
+                role: document.getElementById("role").value,
+                branch: document.getElementById("branch").value,
+                salary: document.getElementById("salary").value.trim(),
+                joining: document.getElementById("joining").value
+            };
+
+            for (let key in data) {
+                if (!data[key]) {
+                    status.className = "status error";
+                    status.innerText = "Complete all fields. Chaos is not a workflow.";
+                    return;
+                }
+            }
+
+            try {
+                btn.disabled = true;
+                btn.innerText = "Generating...";
+                status.className = "status loading";
+                status.innerText = "Creating PDF... bureaucracy intensifies.";
+
+                const response = await fetch("/generate", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    let errorText = "Failed to generate PDF";
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { }
+                    throw new Error(errorText);
+                }
+
+                const blob = await response.blob();
+                const fileURL = URL.createObjectURL(blob);
+
+                window.open(fileURL, "_blank");
+
+                status.className = "status success";
+                status.innerText = "PDF generated successfully.";
+
+            } catch (error) {
+                status.className = "status error";
+                status.innerText = error.message || "Something went wrong.";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Generate Offer Letter PDF";
+            }
+        }
+    </script>
+
+</body>
+
+</html>
