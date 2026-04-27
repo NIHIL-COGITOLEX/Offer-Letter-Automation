@@ -68,13 +68,10 @@ def replace_text(doc, values):
 # =====================================================
 def convert_to_pdf(docx_path, output_dir):
 
-    # Windows local machine
     if platform.system() == "Windows":
         libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
-
-    # Linux server (Render)
     else:
-        libreoffice_path = "libreoffice"
+        libreoffice_path = "soffice"
 
     command = [
         libreoffice_path,
@@ -89,9 +86,9 @@ def convert_to_pdf(docx_path, output_dir):
     subprocess.run(command, check=True)
 
     pdf_name = os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
-    pdf_path = os.path.join(output_dir, pdf_name)
+    return os.path.join(output_dir, pdf_name)
 
-    return pdf_path
+
 # =====================================================
 # HOME PAGE
 # =====================================================
