@@ -46,13 +46,22 @@ google = oauth.register(
 # =====================================================
 # MAIL CONFIG
 # =====================================================
-app.config["MAIL_SERVER"] = "smtp-relay.brevo.com"
-app.config["MAIL_PORT"] = 587
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
 app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USE_SSL"] = False
+
 app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+
 app.config["MAIL_DEFAULT_SENDER"] = "hr@alfatza.com"
-app.config["MAIL_TIMEOUT"] = 20
+
+app.config["MAIL_TIMEOUT"] = 15
+app.config["MAIL_SUPPRESS_SEND"] = False
+
+print("MAIL SERVER:", app.config["MAIL_SERVER"])
+print("MAIL PORT:", app.config["MAIL_PORT"])
+print("MAIL USERNAME:", app.config["MAIL_USERNAME"])
 
 mail = Mail(app)
 
