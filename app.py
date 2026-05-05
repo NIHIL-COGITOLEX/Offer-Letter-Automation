@@ -413,6 +413,7 @@ ALFA TZA LLP
                 "message": "Offer Letter generated and emailed successfully."
             })
 
+    
     except subprocess.CalledProcessError:
 
         return jsonify({
