@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: offer-letter-automation
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app -c gunicorn.conf.py
