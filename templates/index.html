@@ -8,680 +8,215 @@
     <title>ALFA TZA LLP | Offer Letter Automation</title>
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --red: #ff1e2d;
-            --red-dark: #c70016;
-            --white: #ffffff;
-            --black: #050505;
-            --card: #111111;
-            --border: rgba(255, 255, 255, 0.08);
-            --muted: #9ca3af;
-            --success: #22c55e;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
 
         body {
             font-family: "Segoe UI", sans-serif;
-            min-height: 100vh;
-
-            background:
-                radial-gradient(circle at top right,
-                    rgba(255, 30, 45, 0.18),
-                    transparent 22%),
-                radial-gradient(circle at bottom left,
-                    rgba(255, 30, 45, 0.12),
-                    transparent 18%),
-                linear-gradient(135deg, #000000, #090909, #111111);
-
-            color: white;
-            padding: 24px;
+            background: linear-gradient(135deg,#000,#111);
+            color:white;
+            padding:20px;
         }
 
-        .wrapper {
-            max-width: 850px;
-            margin: auto;
+        .container {
+            max-width:800px;
+            margin:auto;
         }
 
         .card {
-            background: linear-gradient(145deg,
-                    rgba(17, 17, 17, .96),
-                    rgba(10, 10, 10, .96));
-
-            border-radius: 26px;
-
-            border: 1px solid var(--border);
-
-            overflow: hidden;
-
-            box-shadow:
-                0 30px 80px rgba(0, 0, 0, .55),
-                0 0 50px rgba(255, 30, 45, .06);
+            background:#111;
+            padding:25px;
+            border-radius:16px;
         }
 
-        .topbar {
-            padding: 34px 24px 28px;
-            text-align: center;
-
-            border-bottom: 1px solid var(--border);
-
-            background:
-                linear-gradient(180deg,
-                    rgba(255, 30, 45, .05),
-                    transparent),
-                linear-gradient(135deg,
-                    #111111,
-                    #090909);
+        h1 {
+            text-align:center;
+            margin-bottom:20px;
         }
 
-        .logo {
-            width: 170px;
-            margin-bottom: 18px;
+        input, select, textarea {
+            width:100%;
+            padding:12px;
+            margin-top:8px;
+            margin-bottom:14px;
+            border-radius:10px;
+            border:1px solid #333;
+            background:#1a1a1a;
+            color:white;
         }
 
-        .title {
-            font-size: 30px;
-            font-weight: 800;
-            letter-spacing: .3px;
+        button {
+            width:100%;
+            padding:14px;
+            border:none;
+            border-radius:12px;
+            background:#ff1e2d;
+            color:white;
+            font-weight:bold;
+            cursor:pointer;
         }
 
-        .title span {
-            color: var(--red);
+        button:hover {
+            background:#c70016;
         }
 
-        .subtitle {
-            margin-top: 10px;
-            font-size: 14px;
-            color: var(--muted);
+        .actions {
+            margin-top:20px;
+            display:none;
+            gap:10px;
         }
 
-        .content {
-            padding: 34px;
-        }
-
-        .login-box {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .google-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-
-            padding: 14px 22px;
-
-            border-radius: 14px;
-
-            background: white;
-            color: black;
-
-            text-decoration: none;
-
-            font-weight: 700;
-
-            transition: .25s;
-        }
-
-        .google-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .user-box {
-            background: rgba(255, 255, 255, .03);
-
-            border: 1px solid var(--border);
-
-            border-radius: 16px;
-
-            padding: 14px 18px;
-
-            margin-bottom: 24px;
-
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .user-email {
-            font-size: 14px;
-            color: #d1d5db;
-        }
-
-        .logout-btn {
-            background: transparent;
-            border: 1px solid rgba(255,255,255,.1);
-            color: white;
-
-            padding: 10px 14px;
-
-            border-radius: 12px;
-
-            cursor: pointer;
-            transition: .2s;
-        }
-
-        .logout-btn:hover {
-            border-color: rgba(255,255,255,.3);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-        }
-
-        .full {
-            grid-column: span 2;
-        }
-
-        .field label {
-            display: block;
-            margin-bottom: 8px;
-
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .field input,
-        .field textarea,
-        .field select {
-            width: 100%;
-
-            padding: 14px 15px;
-
-            border-radius: 14px;
-
-            border: 1px solid var(--border);
-
-            background: linear-gradient(180deg,
-                    #1a1a1a,
-                    #111111);
-
-            color: white;
-
-            outline: none;
-
-            transition: .22s;
-
-            font-size: 15px;
-        }
-
-        .field textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .field input:focus,
-        .field textarea:focus,
-        .field select:focus {
-            border-color: rgba(255, 30, 45, .7);
-
-            box-shadow:
-                0 0 0 4px rgba(255, 30, 45, .12),
-                0 0 25px rgba(255, 30, 45, .08);
-        }
-
-        select option {
-            background: #111111;
-            color: white;
-        }
-
-        .hint {
-            margin-top: 6px;
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .btn {
-            width: 100%;
-
-            margin-top: 26px;
-
-            border: none;
-
-            padding: 17px;
-
-            border-radius: 16px;
-
-            cursor: pointer;
-
-            font-size: 16px;
-            font-weight: 800;
-
-            color: white;
-
-            background:
-                linear-gradient(135deg,
-                    var(--red),
-                    var(--red-dark));
-
-            transition: .25s;
-
-            box-shadow:
-                0 14px 30px rgba(255, 30, 45, .22);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            opacity: .7;
-            cursor: not-allowed;
+        .actions button {
+            flex:1;
         }
 
         .status {
-            min-height: 24px;
-            margin-top: 16px;
-
-            text-align: center;
-
-            font-size: 14px;
-            font-weight: 600;
+            text-align:center;
+            margin-top:15px;
         }
 
-        .loading {
-            color: #d1d5db;
-        }
+        .success { color:#22c55e; }
+        .error { color:#ff4d5d; }
 
-        .success {
-            color: var(--success);
-        }
-
-        .error {
-            color: #ff4d5d;
-        }
-
-        .footer {
-            text-align: center;
-
-            margin-top: 18px;
-
-            color: #71717a;
-
-            font-size: 13px;
-        }
-
-        @media(max-width: 720px) {
-
-            body {
-                padding: 12px;
-            }
-
-            .content {
-                padding: 18px;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .full {
-                grid-column: span 1;
-            }
-
-            .title {
-                font-size: 24px;
-            }
-
-            .logo {
-                width: 140px;
-            }
-        }
     </style>
 </head>
 
 <body>
 
-    <div class="wrapper">
+<div class="container">
+<div class="card">
 
-        <div class="card">
+<h1>Offer Letter Automation</h1>
 
-            <div class="topbar">
+{% if not session.get("user") %}
 
-                <img src="/static/logo.png"
-                    class="logo"
-                    alt="ALFA TZA LLP">
+    <a href="/login">
+        <button>Login with Google</button>
+    </a>
 
-                <div class="title">
-                    Offer Letter <span>Automation</span>
-                </div>
+{% else %}
 
-                <div class="subtitle">
-                    Secure HR document generation & direct mail dispatch.
-                </div>
+    <p style="margin-bottom:15px;">
+        Logged in as: <b>{{ session["user"]["email"] }}</b>
+    </p>
 
-            </div>
+    <button onclick="window.location.href='/logout'">Logout</button>
 
-            <div class="content">
+    <hr style="margin:20px 0;">
 
-                {% if not session.get("user") %}
+    <form id="form">
 
-                <div class="login-box">
+        <input id="name" placeholder="Candidate Name">
+        <input id="employee_code" placeholder="Employee Code">
+        <input id="phone" placeholder="Phone">
+        <input id="email" placeholder="Employee Email">
 
-                    <a href="/login" class="google-btn">
-                        Login with Google
-                    </a>
+        <input id="salary" placeholder="Salary">
+        <input type="date" id="joining">
 
-                </div>
+        <textarea id="address" placeholder="Address"></textarea>
 
-                {% else %}
+        <select id="role">
+            <option value="">Select Role</option>
+            <option value="telecaller">Telecaller</option>
+            <option value="team_leader">Team Leader</option>
+            <option value="backend">Backend</option>
+            <option value="hr">HR</option>
+            <option value="data_analyst">Data Analyst</option>
+        </select>
 
-                <div class="user-box">
+        <select id="branch">
+            <option value="">Select Branch</option>
+            <option value="vashi">Vashi</option>
+            <option value="thane">Thane</option>
+            <option value="virar">Virar</option>
+        </select>
 
-                    <div class="user-email">
-                        Logged in as:
-                        <strong>{{ session["user"]["email"] }}</strong>
-                    </div>
+        <button type="button" onclick="generate()">Generate Offer Letter</button>
 
-                    <button class="logout-btn"
-                        onclick="window.location.href='/logout'">
-                        Logout
-                    </button>
+    </form>
 
-                </div>
-
-                <form id="offerForm">
-
-                    <div class="grid">
-
-                        <div class="field full">
-                            <label>Candidate Name</label>
-
-                            <input type="text"
-                                id="name"
-                                placeholder="Enter employee full name">
-                        </div>
-
-                        <div class="field">
-                            <label>Employee Code</label>
-
-                            <input type="text"
-                                id="employee_code"
-                                placeholder="Enter employee code">
-                        </div>
-
-                        <div class="field">
-                            <label>Phone Number</label>
-
-                            <input type="tel"
-                                id="phone"
-                                placeholder="Enter phone number">
-                        </div>
-
-                        <div class="field">
-                            <label>Employee Email</label>
-
-                            <input type="email"
-                                id="email"
-                                placeholder="employee@gmail.com">
-                        </div>
-
-                        <div class="field">
-                            <label>Salary (₹)</label>
-
-                            <input type="text"
-                                id="salary"
-                                placeholder="Enter salary">
-
-                            <div class="hint">
-                                Automatically formatted in Indian currency style.
-                            </div>
-                        </div>
-
-                        <div class="field">
-                            <label>Joining Date</label>
-
-                            <input type="date"
-                                id="joining">
-                        </div>
-
-                        <div class="field full">
-
-                            <label>Residential Address</label>
-
-                            <textarea id="address"
-                                placeholder="Enter complete address"></textarea>
-
-                        </div>
-
-                        <div class="field">
-
-                            <label>Role</label>
-
-                            <select id="role">
-
-                                <option value="">Select Role</option>
-
-                                <option value="telecaller">
-                                    Telecaller
-                                </option>
-
-                                <option value="team_leader">
-                                    Team Leader
-                                </option>
-
-                                <option value="backend">
-                                    Backend
-                                </option>
-
-                                <option value="hr">
-                                    HR
-                                </option>
-
-                                <option value="data_analyst">
-                                    Data Analyst
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                        <div class="field">
-
-                            <label>Branch</label>
-
-                            <select id="branch">
-
-                                <option value="">Select Branch</option>
-
-                                <option value="vashi">
-                                    Vashi
-                                </option>
-
-                                <option value="thane">
-                                    Thane
-                                </option>
-
-                                <option value="virar">
-                                    Virar
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                    <button type="button"
-                        class="btn"
-                        id="generateBtn"
-                        onclick="generateAndSend()">
-
-                        Generate PDF + Send Email
-
-                    </button>
-
-                    <div class="status"
-                        id="status"></div>
-
-                </form>
-
-                {% endif %}
-
-            </div>
-
-        </div>
-
-        <div class="footer">
-            ALFA TZA LLP • Internal HR Utility
-        </div>
-
+    <div class="actions" id="actions">
+        <button onclick="downloadPDF()">Download PDF</button>
+        <button onclick="openMail()">Open Email</button>
     </div>
 
-    <script>
+    <div class="status" id="status"></div>
 
-        const salaryInput = document.getElementById("salary");
+{% endif %}
 
-        if (salaryInput) {
+</div>
+</div>
 
-            salaryInput.addEventListener("input", function () {
+<script>
 
-                let raw = this.value
-                    .replace(/,/g, "")
-                    .replace(/\D/g, "");
+let downloadUrl = "";
+let mailtoLink = "";
 
-                if (!raw) {
-                    this.value = "";
-                    return;
-                }
+async function generate() {
 
-                this.value = Number(raw)
-                    .toLocaleString("en-IN");
+    const status = document.getElementById("status");
+    const actions = document.getElementById("actions");
 
-            });
+    const data = {
+        name: name.value,
+        employee_code: employee_code.value,
+        phone: phone.value,
+        email: email.value,
+        address: address.value,
+        role: role.value,
+        branch: branch.value,
+        salary: salary.value,
+        joining: joining.value
+    };
 
+    for (let key in data) {
+        if (!data[key]) {
+            status.className = "status error";
+            status.innerText = "Fill all fields";
+            return;
         }
+    }
 
-        async function generateAndSend() {
+    try {
 
-            const btn = document.getElementById("generateBtn");
-            const status = document.getElementById("status");
+        status.innerText = "Generating PDF...";
+        status.className = "status";
 
-            const data = {
+        const res = await fetch("/generate", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify(data)
+        });
 
-                name:
-                    document.getElementById("name")
-                    .value.trim(),
+        const result = await res.json();
 
-                employee_code:
-                    document.getElementById("employee_code")
-                    .value.trim(),
+        if (!res.ok) throw new Error(result.error);
 
-                phone:
-                    document.getElementById("phone")
-                    .value.trim(),
+        downloadUrl = result.download_url;
 
-                email:
-                    document.getElementById("email")
-                    .value.trim(),
+        // 🔥 VERY IMPORTANT: encode mailto properly
+        mailtoLink = encodeURI(result.mailto);
 
-                address:
-                    document.getElementById("address")
-                    .value.trim(),
+        status.className = "status success";
+        status.innerText = "PDF Ready. Download & Send Email.";
 
-                role:
-                    document.getElementById("role")
-                    .value,
+        actions.style.display = "flex";
 
-                branch:
-                    document.getElementById("branch")
-                    .value,
+    } catch (err) {
+        status.className = "status error";
+        status.innerText = err.message;
+    }
+}
 
-                salary:
-                    document.getElementById("salary")
-                    .value.replace(/,/g, "")
-                    .trim(),
+function downloadPDF() {
+    window.open(downloadUrl, "_blank");
+}
 
-                joining:
-                    document.getElementById("joining")
-                    .value
-            };
+function openMail() {
+    window.location.href = mailtoLink;
+}
 
-            for (let key in data) {
-
-                if (!data[key]) {
-
-                    status.className = "status error";
-
-                    status.innerText =
-                        "Complete all fields.";
-
-                    return;
-                }
-            }
-
-            try {
-
-                btn.disabled = true;
-
-                btn.innerText =
-                    "Generating & Sending...";
-
-                status.className =
-                    "status loading";
-
-                status.innerText =
-                    "Creating PDF and sending mail from hr@alfatza.com ...";
-
-                const response = await fetch("/generate", {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify(data)
-
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(
-                        result.error || "Something failed."
-                    );
-                }
-
-                status.className =
-                    "status success";
-
-                status.innerText =
-                    result.message;
-
-                document.getElementById("offerForm").reset();
-
-            }
-
-            catch (error) {
-
-                status.className =
-                    "status error";
-
-                status.innerText =
-                    error.message;
-
-            }
-
-            finally {
-
-                btn.disabled = false;
-
-                btn.innerText =
-                    "Generate PDF + Send Email";
-            }
-        }
-
-    </script>
+</script>
 
 </body>
-
-
 </html>
