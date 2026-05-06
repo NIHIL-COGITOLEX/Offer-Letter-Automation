@@ -13,12 +13,13 @@ from docx import Document
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from authlib.integrations.flask_client import OAuth
-from flask_mail import Mail, Message
 
 import os
 import tempfile
 import subprocess
 import platform
+import requests
+import base64
 
 # =====================================================
 # APP CONFIG
@@ -42,28 +43,6 @@ google = oauth.register(
         "scope": "openid email profile"
     }
 )
-
-# =====================================================
-# MAIL CONFIG
-# =====================================================
-app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER")
-app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USE_SSL"] = False
-
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
-
-app.config["MAIL_DEFAULT_SENDER"] = "hr@alfatza.com"
-
-app.config["MAIL_TIMEOUT"] = 15
-app.config["MAIL_SUPPRESS_SEND"] = False
-
-print("MAIL SERVER:", app.config["MAIL_SERVER"])
-print("MAIL PORT:", app.config["MAIL_PORT"])
-print("MAIL USERNAME:", app.config["MAIL_USERNAME"])
-
-mail = Mail(app)
 
 # =====================================================
 # BASE DIR
@@ -115,27 +94,20 @@ TENS = [
 def two_digit_words(n):
     if n < 20:
         return ONES[n]
-
     return TENS[n // 10] + (" " + ONES[n % 10] if n % 10 else "")
 
 def three_digit_words(n):
-
     word = ""
-
     if n >= 100:
         word += ONES[n // 100] + " Hundred"
         n %= 100
-
         if n:
             word += " "
-
     if n:
         word += two_digit_words(n)
-
     return word.strip()
 
 def number_to_words_indian(n):
-
     if n == 0:
         return "Zero"
 
@@ -154,44 +126,34 @@ def number_to_words_indian(n):
 
     if crore:
         parts.append(two_digit_words(crore) + " Crore")
-
     if lakh:
         parts.append(two_digit_words(lakh) + " Lakh")
-
     if thousand:
         parts.append(two_digit_words(thousand) + " Thousand")
-
     if hundred:
         parts.append(three_digit_words(hundred))
 
     return " ".join(parts).strip()
 
 def format_salary(value):
-
     amount = int(str(value).replace(",", "").strip())
-
     formatted_number = f"{amount:,}"
     words = number_to_words_indian(amount).lower()
-
     return f"{formatted_number} ({words})"
 
 # =====================================================
 # REPLACE TEXT INSIDE DOCX
 # =====================================================
 def replace_text(doc, values):
-
     for para in doc.paragraphs:
         for key, val in values.items():
-
             if key in para.text:
                 para.text = para.text.replace(key, val)
 
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-
                 for key, val in values.items():
-
                     if key in cell.text:
                         cell.text = cell.text.replace(key, val)
 
@@ -199,13 +161,9 @@ def replace_text(doc, values):
 # DOCX -> PDF
 # =====================================================
 def convert_to_pdf(docx_path, output_dir):
+    libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe" if platform.system() == "Windows" else "soffice"
 
-    if platform.system() == "Windows":
-        libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
-    else:
-        libreoffice_path = "soffice"
-
-    command = [
+    subprocess.run([
         libreoffice_path,
         "--headless",
         "--convert-to",
@@ -213,14 +171,9 @@ def convert_to_pdf(docx_path, output_dir):
         "--outdir",
         output_dir,
         docx_path
-    ]
+    ], check=True)
 
-    subprocess.run(command, check=True)
-
-    pdf_name = os.path.splitext(
-        os.path.basename(docx_path)
-    )[0] + ".pdf"
-
+    pdf_name = os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
     return os.path.join(output_dir, pdf_name)
 
 # =====================================================
@@ -228,12 +181,7 @@ def convert_to_pdf(docx_path, output_dir):
 # =====================================================
 @app.route("/login")
 def login():
-
-    redirect_uri = url_for(
-        "authorize",
-        _external=True
-    )
-
+    redirect_uri = url_for("authorize", _external=True)
     return google.authorize_redirect(redirect_uri)
 
 # =====================================================
@@ -241,37 +189,16 @@ def login():
 # =====================================================
 @app.route("/authorize")
 def authorize():
-
     token = google.authorize_access_token()
     user = token.get("userinfo")
 
     if not user:
         return "Google login failed"
 
-    email = user.get("email")
-
-    # =========================================
-    # ALLOWED EMAILS
-    # =========================================
-    allowed_emails = [
-        "hr@alfatza.com"
-    ]
-
-    if email not in allowed_emails:
+    if user.get("email") not in ["hr@alfatza.com"]:
         return "Unauthorized Access"
 
     session["user"] = user
-
-    return redirect("/")
-
-# =====================================================
-# LOGOUT
-# =====================================================
-@app.route("/logout")
-def logout():
-
-    session.clear()
-
     return redirect("/")
 
 # =====================================================
@@ -279,82 +206,72 @@ def logout():
 # =====================================================
 @app.route("/")
 def home():
-
     if "user" not in session:
         return redirect("/login")
+    return render_template("index.html", user=session["user"])
 
-    return render_template(
-        "index.html",
-        user=session["user"]
+# =====================================================
+# BREVO EMAIL FUNCTION
+# =====================================================
+def send_email_brevo(to_email, name, pdf_path, subject, body):
+
+    with open(pdf_path, "rb") as f:
+        encoded_file = base64.b64encode(f.read()).decode()
+
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "accept": "application/json",
+            "api-key": os.environ.get("BREVO_API_KEY"),
+            "content-type": "application/json"
+        },
+        json={
+            "sender": {"name": "ALFA TZA HR", "email": "hr@alfatza.com"},
+            "to": [{"email": to_email, "name": name}],
+            "subject": subject,
+            "htmlContent": body.replace("\n", "<br>"),
+            "attachment": [{
+                "content": encoded_file,
+                "name": f"{name}_offer_letter.pdf"
+            }]
+        }
     )
+
+    print("BREVO:", response.status_code, response.text)
+
+    if response.status_code not in [200, 201]:
+        raise Exception(response.text)
 
 # =====================================================
 # GENERATE + SEND EMAIL
 # =====================================================
 @app.route("/generate", methods=["POST"])
 def generate():
-
     try:
-
         if "user" not in session:
-            return jsonify({
-                "error": "Unauthorized"
-            }), 401
+            return jsonify({"error": "Unauthorized"}), 401
 
         data = request.get_json()
 
-        required_fields = [
-            "name",
-            "employee_code",
-            "phone",
-            "email",
-            "address",
-            "role",
-            "branch",
-            "salary",
-            "joining"
-        ]
-
-        for field in required_fields:
-
+        for field in ["name","employee_code","phone","email","address","role","branch","salary","joining"]:
             if not data.get(field):
-                return jsonify({
-                    "error": f"Missing field: {field}"
-                }), 400
+                return jsonify({"error": f"Missing field: {field}"}), 400
 
-        role = data["role"]
-        branch = data["branch"]
+        template_path = TEMPLATES.get(data["role"])
+        if not template_path or not os.path.exists(template_path):
+            return jsonify({"error": "Template not found"}), 500
 
-        template_path = TEMPLATES.get(role)
-
-        if not template_path:
-            return jsonify({
-                "error": "Invalid role selected"
-            }), 400
-
-        if not os.path.exists(template_path):
-            return jsonify({
-                "error": "Template file not found"
-            }), 500
-
-        # =====================================================
-        # LOAD DOCX
-        # =====================================================
         doc = Document(template_path)
-
-        joining_date = format_date(data["joining"])
-        today_date = datetime.now().strftime("%d %B %Y")
-        salary_text = format_salary(data["salary"])
 
         values = {
             "{{name}}": data["name"],
             "{{employee_code}}": data["employee_code"],
             "{{phone}}": data["phone"],
             "{{address}}": data["address"],
-            "{{branch_address}}": BRANCHES.get(branch, ""),
-            "{{salary}}": salary_text,
-            "{{joining}}": joining_date,
-            "{{date}}": today_date
+            "{{branch_address}}": BRANCHES.get(data["branch"], ""),
+            "{{salary}}": format_salary(data["salary"]),
+            "{{joining}}": format_date(data["joining"]),
+            "{{date}}": datetime.now().strftime("%d %B %Y")
         }
 
         replace_text(doc, values)
@@ -362,28 +279,14 @@ def generate():
         with tempfile.TemporaryDirectory() as temp_dir:
 
             safe_name = secure_filename(data["name"])
-
-            docx_path = os.path.join(
-                temp_dir,
-                f"{safe_name}.docx"
-            )
+            docx_path = os.path.join(temp_dir, f"{safe_name}.docx")
 
             doc.save(docx_path)
+            pdf_path = convert_to_pdf(docx_path, temp_dir)
 
-            pdf_path = convert_to_pdf(
-                docx_path,
-                temp_dir
-            )
+            branch_name = data["branch"].capitalize()
 
-            # =====================================================
-            # EMAIL CONTENT
-            # =====================================================
-            branch_name = branch.capitalize()
-
-            subject = (
-                f"Issuance of Offer Letter – "
-                f"{branch_name} Branch"
-            )
+            subject = f"Issuance of Offer Letter – {branch_name} Branch"
 
             body = f"""
 Dear {data['name']},
@@ -402,54 +305,21 @@ H.R
 ALFA TZA LLP
 """
 
-            msg = Message(
+            send_email_brevo(
+                to_email=data["email"],
+                name=data["name"],
+                pdf_path=pdf_path,
                 subject=subject,
-                recipients=[data["email"]],
                 body=body
             )
 
-            with open(pdf_path, "rb") as f:
-
-                msg.attach(
-                    f"{safe_name}_offer_letter.pdf",
-                    "application/pdf",
-                    f.read()
-                )
-
-            mail.send(msg)
-
-            return jsonify({
-                "success": True,
-                "message": "Offer Letter generated and emailed successfully."
-            })
-
-    
-    except subprocess.CalledProcessError:
-
-        return jsonify({
-            "error": "PDF conversion failed."
-        }), 500
-
-    except ValueError:
-
-        return jsonify({
-            "error": "Invalid salary amount."
-        }), 400
+        return jsonify({"success": True})
 
     except Exception as e:
-
-        return jsonify({
-            "error": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
 # =====================================================
 # MAIN
 # =====================================================
 if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT", 5000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
