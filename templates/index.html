@@ -294,25 +294,15 @@ throw new Error(errText);
 }
 
 // ===== GET MAILTO HEADER =====
-const mailto=res.headers.get("X-Mailto");
+const result = await res.json();
 
-// ===== DOWNLOAD PDF =====
-const blob=await res.blob();
-const url=window.URL.createObjectURL(blob);
+// download PDF
+window.open(result.download_url, "_blank");
 
-const a=document.createElement("a");
-a.href=url;
-a.download=`${data.name}_Offer_Letter.pdf`;
-document.body.appendChild(a);
-a.click();
-a.remove();
-
-// ===== OPEN MAIL =====
-setTimeout(()=>{
-if(mailto){
-window.location.href=mailto;
-}
-},1000);
+// open gmail compose
+setTimeout(() => {
+    window.open(result.gmail_link, "_blank");
+}, 800);
 
 status.className="status success";
 status.innerText="PDF ready. Mail draft opening...";
