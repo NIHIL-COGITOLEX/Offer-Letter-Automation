@@ -214,12 +214,17 @@ def generate():
 
         body = f"""Dear {data['name']},
 
-Please find attached your Offer Letter.
+Please find attached your formal Offer/Appointment Letter for your position at our {branch_name} Branch.
 
-Kindly sign and return a copy.
+As you have already joined and are continuing your employment with us, this letter serves as the official documentation of your role, compensation, and terms of employment.
 
-Regards,
-HR Team
+Kindly sign and return a copy for our records.
+
+We look forward to your continued contribution and growth with the organization.
+
+Warm regards,
+Rashid Ali
+H.R
 ALFA TZA LLP
 """
 
@@ -252,10 +257,16 @@ def download(filename):
     for root, dirs, files in os.walk(temp_dir):
         for file in files:
             if file.startswith(filename) and file.endswith(".pdf"):
-                return send_file(os.path.join(root, file), as_attachment=True)
+
+                nice_name = f"{filename}_Offer_Letter.pdf"
+
+                return send_file(
+                    os.path.join(root, file),
+                    as_attachment=True,
+                    download_name=nice_name
+                )
 
     return "File not found", 404
-
 
 # =====================================================
 # RUN
