@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>ALFA TZA LLP | Offer Letter Generator</title>
 
 <style>
@@ -31,7 +32,7 @@ color:white;
 padding:24px;
 }
 
-.wrapper{max-width:900px;margin:auto;}
+.wrapper{max-width:920px;margin:auto;}
 
 .card{
 background:linear-gradient(145deg,#111,#0a0a0a);
@@ -107,15 +108,17 @@ margin-top:5px;
 .btn{
 width:100%;
 margin-top:20px;
-padding:15px;
+padding:16px;
 border:none;
 border-radius:14px;
 font-weight:800;
 background:linear-gradient(135deg,var(--red),var(--red-dark));
 color:white;
 cursor:pointer;
+transition:.2s;
 }
 
+.btn:hover{transform:translateY(-1px);}
 .btn:disabled{opacity:.7;cursor:not-allowed;}
 
 .status{
@@ -150,7 +153,7 @@ font-size:13px;
 <div class="topbar">
 <img src="/static/logo.png" class="logo">
 <div class="title">Offer Letter <span>Generator</span></div>
-<div class="subtitle">Corporate paperwork, now slightly less painful.</div>
+<div class="subtitle">HR work, now slightly less miserable.</div>
 </div>
 
 <div class="content">
@@ -160,7 +163,7 @@ font-size:13px;
 <div class="grid">
 
 <div class="field full">
-<label>Name</label>
+<label>Candidate Name</label>
 <input id="name" placeholder="Full name">
 </div>
 
@@ -175,9 +178,14 @@ font-size:13px;
 </div>
 
 <div class="field">
+<label>Email</label>
+<input id="email" type="email" placeholder="candidate@email.com">
+</div>
+
+<div class="field">
 <label>Salary</label>
 <input id="salary">
-<div class="hint">Auto formats numbers</div>
+<div class="hint">Auto formats ₹ values</div>
 </div>
 
 <div class="field">
@@ -230,23 +238,23 @@ Generate Offer Letter
 
 <script>
 
-// salary formatting
+// ===== Salary Formatter =====
 document.getElementById("salary").addEventListener("input", function(){
 let raw=this.value.replace(/,/g,"").replace(/\D/g,"");
 this.value=raw?Number(raw).toLocaleString("en-IN"):"";
 });
 
-// main function
+// ===== Main Logic =====
 async function generatePDF(){
 
 const btn=document.getElementById("generateBtn");
 const status=document.getElementById("status");
 
-// collect values safely
 const data={
 name:document.getElementById("name").value.trim(),
 employee_code:document.getElementById("employee_code").value.trim(),
 phone:document.getElementById("phone").value.trim(),
+email:document.getElementById("email").value.trim(),
 address:document.getElementById("address").value.trim(),
 role:document.getElementById("role").value,
 branch:document.getElementById("branch").value,
@@ -254,11 +262,11 @@ salary:document.getElementById("salary").value.replace(/,/g,""),
 joining:document.getElementById("joining").value
 };
 
-// validation
+// ===== Validation =====
 for(let k in data){
 if(!data[k]){
 status.className="status error";
-status.innerText="Fill all fields properly.";
+status.innerText="Fill all fields. This isn't optional.";
 return;
 }
 }
@@ -268,7 +276,7 @@ try{
 btn.disabled=true;
 btn.innerText="Generating...";
 status.className="status loading";
-status.innerText="Creating PDF...";
+status.innerText="Generating PDF...";
 
 const res=await fetch("/generate",{
 method:"POST",
@@ -285,33 +293,33 @@ errText=err.error||errText;
 throw new Error(errText);
 }
 
-// get mailto
+// ===== GET MAILTO HEADER =====
 const mailto=res.headers.get("X-Mailto");
 
-// download file
+// ===== DOWNLOAD PDF =====
 const blob=await res.blob();
 const url=window.URL.createObjectURL(blob);
 
 const a=document.createElement("a");
 a.href=url;
-a.download="Offer_Letter.pdf";
+a.download=`${data.name}_Offer_Letter.pdf`;
 document.body.appendChild(a);
 a.click();
 a.remove();
 
-// open mail
+// ===== OPEN MAIL =====
 setTimeout(()=>{
 if(mailto){
 window.location.href=mailto;
 }
-},1200);
+},1000);
 
 status.className="status success";
-status.innerText="PDF generated successfully.";
+status.innerText="PDF ready. Mail draft opening...";
 
 setTimeout(()=>{
 document.getElementById("offerForm").reset();
-},1000);
+},1200);
 
 }catch(e){
 status.className="status error";
