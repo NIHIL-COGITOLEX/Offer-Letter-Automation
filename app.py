@@ -1,49 +1,15 @@
-from flask import (
-    Flask, request, render_template,
-    jsonify, session, redirect,
-    url_for, send_file
-)
-
-from flask_cors import CORS
+from flask import Flask, request, send_file, jsonify, render_template
 from docx import Document
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from authlib.integrations.flask_client import OAuth
-from authlib.integrations.base_client.errors import MismatchingStateError
+from urllib.parse import quote
 
 import os
 import tempfile
 import subprocess
 
-# =====================================================
-# APP CONFIG
-# =====================================================
 app = Flask(__name__, template_folder="templates")
-CORS(app)
 
-app.secret_key = os.environ.get("SECRET_KEY", "fallback_secret")
-
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_SAMESITE="None"
-)
-
-# =====================================================
-# GOOGLE OAUTH
-# =====================================================
-oauth = OAuth(app)
-
-google = oauth.register(
-    name="google",
-    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
-    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"}
-)
-
-# =====================================================
-# BASE DIR
-# =====================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TEMPLATES = {
@@ -60,14 +26,14 @@ BRANCHES = {
     "virar": "Virar Address"
 }
 
-# =====================================================
+# =============================
 # HELPERS
-# =====================================================
+# =============================
 def format_date(date_str):
     return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d %B %Y")
 
-def format_salary(value):
-    return f"{int(value):,}"
+def format_salary(val):
+    return f"{int(val):,}"
 
 def replace_text(doc, values):
     for para in doc.paragraphs:
@@ -83,70 +49,48 @@ def replace_text(doc, values):
                         cell.text = cell.text.replace(k, v)
 
 def convert_to_pdf(docx_path, output_dir):
-    subprocess.run([
+    result = subprocess.run([
         "soffice",
         "--headless",
         "--convert-to", "pdf",
         "--outdir", output_dir,
         docx_path
-    ], check=True)
+    ], capture_output=True, text=True)
+
+    if result.returncode != 0:
+        raise Exception(result.stderr)
 
     return os.path.join(
         output_dir,
         os.path.basename(docx_path).replace(".docx", ".pdf")
     )
 
-# =====================================================
-# AUTH
-# =====================================================
-@app.route("/login")
-def login():
-    return google.authorize_redirect(url_for("authorize", _external=True))
-
-@app.route("/authorize")
-def authorize():
-    try:
-        token = google.authorize_access_token()
-        user = token.get("userinfo")
-
-        if user.get("email") != "hr@alfatza.com":
-            return "Unauthorized"
-
-        session["user"] = user
-        return redirect("/")
-
-    except MismatchingStateError:
-        return redirect("/login")
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
+# =============================
+# ROUTES
+# =============================
 @app.route("/")
 def home():
-    if "user" not in session:
-        return redirect("/login")
-    return render_template("index.html", user=session["user"])
+    return render_template("index.html")
 
-# =====================================================
-# GENERATE
-# =====================================================
 @app.route("/generate", methods=["POST"])
 def generate():
     try:
-        if "user" not in session:
-            return jsonify({"error": "Unauthorized"}), 401
-
         data = request.get_json()
 
-        required = ["name","employee_code","phone","email","address","role","branch","salary","joining"]
+        required = [
+            "name","employee_code","phone",
+            "address","role","branch",
+            "salary","joining"
+        ]
 
         for f in required:
             if not data.get(f):
                 return jsonify({"error": f"Missing {f}"}), 400
 
         template_path = TEMPLATES.get(data["role"])
+        if not template_path:
+            return jsonify({"error": "Invalid role"}), 400
+
         doc = Document(template_path)
 
         replace_text(doc, {
@@ -168,46 +112,34 @@ def generate():
 
         pdf_path = convert_to_pdf(docx_path, temp_dir)
 
-        # 🔥 STORE PATH IN SESSION
-        session["pdf_path"] = pdf_path
+        # MAILTO FIXED
+        subject = quote(f"Issuance of Offer Letter – {data['branch'].capitalize()} Branch")
 
-        branch_name = data["branch"].capitalize()
+        body = quote(f"""Dear {data['name']},
 
-        subject = f"Issuance of Offer Letter – {branch_name} Branch"
-
-        body = f"""Dear {data['name']},
-
-Please find attached your Offer Letter.
+Please find your Offer Letter attached.
 
 Regards,
-HR Team"""
+HR Team""")
 
-        # 🔥 MAIL LINK
-        mailto_link = f"mailto:{data['email']}?subject={subject}&body={body}"
+        mailto = f"mailto:?subject={subject}&body={body}"
 
-        return jsonify({
-            "success": True,
-            "download_url": "/download",
-            "mailto": mailto_link
-        })
+        response = send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=f"{filename}.pdf",
+            mimetype="application/pdf"
+        )
+
+        response.headers["X-Mailto"] = mailto
+
+        return response
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# =====================================================
-# DOWNLOAD PDF
-# =====================================================
-@app.route("/download")
-def download():
-    path = session.get("pdf_path")
-
-    if not path or not os.path.exists(path):
-        return "File not found", 404
-
-    return send_file(path, as_attachment=True)
-
-# =====================================================
-# MAIN
-# =====================================================
+# =============================
+# RUN
+# =============================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=5000)
