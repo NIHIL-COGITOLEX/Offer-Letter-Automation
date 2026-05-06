@@ -13,6 +13,7 @@ from docx import Document
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from authlib.integrations.flask_client import OAuth
+from authlib.integrations.base_client.errors import MismatchingStateError
 
 import os
 import tempfile
@@ -27,7 +28,13 @@ import base64
 app = Flask(__name__, template_folder="templates")
 CORS(app)
 
-app.secret_key = os.environ.get("SECRET_KEY")
+app.secret_key = os.environ.get("SECRET_KEY", "fallback_secret")
+
+# 🔥 FIX FOR RENDER (IMPORTANT)
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE="None"
+)
 
 # =====================================================
 # GOOGLE OAUTH
@@ -39,9 +46,7 @@ google = oauth.register(
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={
-        "scope": "openid email profile"
-    }
+    client_kwargs={"scope": "openid email profile"}
 )
 
 # =====================================================
@@ -73,73 +78,14 @@ BRANCHES = {
 # FORMAT DATE
 # =====================================================
 def format_date(date_str):
-    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-    return date_obj.strftime("%d %B %Y")
+    return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d %B %Y")
 
 # =====================================================
-# NUMBER TO WORDS
+# SALARY FORMAT
 # =====================================================
-ONES = [
-    "", "One", "Two", "Three", "Four", "Five", "Six",
-    "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
-    "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-    "Seventeen", "Eighteen", "Nineteen"
-]
-
-TENS = [
-    "", "", "Twenty", "Thirty", "Forty",
-    "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
-]
-
-def two_digit_words(n):
-    if n < 20:
-        return ONES[n]
-    return TENS[n // 10] + (" " + ONES[n % 10] if n % 10 else "")
-
-def three_digit_words(n):
-    word = ""
-    if n >= 100:
-        word += ONES[n // 100] + " Hundred"
-        n %= 100
-        if n:
-            word += " "
-    if n:
-        word += two_digit_words(n)
-    return word.strip()
-
-def number_to_words_indian(n):
-    if n == 0:
-        return "Zero"
-
-    parts = []
-
-    crore = n // 10000000
-    n %= 10000000
-
-    lakh = n // 100000
-    n %= 100000
-
-    thousand = n // 1000
-    n %= 1000
-
-    hundred = n
-
-    if crore:
-        parts.append(two_digit_words(crore) + " Crore")
-    if lakh:
-        parts.append(two_digit_words(lakh) + " Lakh")
-    if thousand:
-        parts.append(two_digit_words(thousand) + " Thousand")
-    if hundred:
-        parts.append(three_digit_words(hundred))
-
-    return " ".join(parts).strip()
-
 def format_salary(value):
     amount = int(str(value).replace(",", "").strip())
-    formatted_number = f"{amount:,}"
-    words = number_to_words_indian(amount).lower()
-    return f"{formatted_number} ({words})"
+    return f"{amount:,}"
 
 # =====================================================
 # REPLACE TEXT INSIDE DOCX
@@ -161,7 +107,7 @@ def replace_text(doc, values):
 # DOCX -> PDF
 # =====================================================
 def convert_to_pdf(docx_path, output_dir):
-    libreoffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe" if platform.system() == "Windows" else "soffice"
+    libreoffice_path = "soffice"  # Docker compatible
 
     subprocess.run([
         libreoffice_path,
@@ -181,25 +127,28 @@ def convert_to_pdf(docx_path, output_dir):
 # =====================================================
 @app.route("/login")
 def login():
-    redirect_uri = url_for("authorize", _external=True)
-    return google.authorize_redirect(redirect_uri)
+    return google.authorize_redirect(url_for("authorize", _external=True))
 
 # =====================================================
-# AUTHORIZE
+# AUTHORIZE (FIXED)
 # =====================================================
 @app.route("/authorize")
 def authorize():
-    token = google.authorize_access_token()
-    user = token.get("userinfo")
+    try:
+        token = google.authorize_access_token()
+        user = token.get("userinfo")
 
-    if not user:
-        return "Google login failed"
+        if not user:
+            return "Google login failed"
 
-    if user.get("email") not in ["hr@alfatza.com"]:
-        return "Unauthorized Access"
+        if user.get("email") not in ["hr@alfatza.com"]:
+            return "Unauthorized Access"
 
-    session["user"] = user
-    return redirect("/")
+        session["user"] = user
+        return redirect("/")
+
+    except MismatchingStateError:
+        return redirect("/login")
 
 # =====================================================
 # HOME
@@ -211,9 +160,14 @@ def home():
     return render_template("index.html", user=session["user"])
 
 # =====================================================
-# BREVO EMAIL FUNCTION
+# BREVO EMAIL FUNCTION (FIXED + DEBUG)
 # =====================================================
 def send_email_brevo(to_email, name, pdf_path, subject, body):
+
+    print("Sending email to:", to_email)
+
+    api_key = os.environ.get("BREVO_API_KEY")
+    print("BREVO KEY:", api_key)
 
     with open(pdf_path, "rb") as f:
         encoded_file = base64.b64encode(f.read()).decode()
@@ -222,11 +176,14 @@ def send_email_brevo(to_email, name, pdf_path, subject, body):
         "https://api.brevo.com/v3/smtp/email",
         headers={
             "accept": "application/json",
-            "api-key": os.environ.get("BREVO_API_KEY"),
+            "api-key": api_key,
             "content-type": "application/json"
         },
         json={
-            "sender": {"name": "ALFA TZA HR", "email": "hr@alfatza.com"},
+            "sender": {
+                "name": "ALFA TZA HR",
+                "email": "hr@alfatza.com"
+            },
             "to": [{"email": to_email, "name": name}],
             "subject": subject,
             "htmlContent": body.replace("\n", "<br>"),
@@ -237,7 +194,8 @@ def send_email_brevo(to_email, name, pdf_path, subject, body):
         }
     )
 
-    print("BREVO:", response.status_code, response.text)
+    print("BREVO STATUS:", response.status_code)
+    print("BREVO RESPONSE:", response.text)
 
     if response.status_code not in [200, 201]:
         raise Exception(response.text)
@@ -253,7 +211,9 @@ def generate():
 
         data = request.get_json()
 
-        for field in ["name","employee_code","phone","email","address","role","branch","salary","joining"]:
+        required = ["name","employee_code","phone","email","address","role","branch","salary","joining"]
+
+        for field in required:
             if not data.get(field):
                 return jsonify({"error": f"Missing field: {field}"}), 400
 
@@ -263,7 +223,7 @@ def generate():
 
         doc = Document(template_path)
 
-        values = {
+        replace_text(doc, {
             "{{name}}": data["name"],
             "{{employee_code}}": data["employee_code"],
             "{{phone}}": data["phone"],
@@ -272,9 +232,7 @@ def generate():
             "{{salary}}": format_salary(data["salary"]),
             "{{joining}}": format_date(data["joining"]),
             "{{date}}": datetime.now().strftime("%d %B %Y")
-        }
-
-        replace_text(doc, values)
+        })
 
         with tempfile.TemporaryDirectory() as temp_dir:
 
@@ -316,6 +274,7 @@ ALFA TZA LLP
         return jsonify({"success": True})
 
     except Exception as e:
+        print("ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 
 # =====================================================
