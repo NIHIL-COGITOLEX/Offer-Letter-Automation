@@ -1,517 +1,539 @@
-<!DOCTYPE html>
-<html lang="en">
+from flask import (
+    Flask,
+    request,
+    render_template,
+    jsonify,
+    session,
+    redirect,
+    url_for,
+    send_file
+)
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+from flask_cors import CORS
+from docx import Document
+from datetime import datetime
+from werkzeug.utils import secure_filename
+from authlib.integrations.flask_client import OAuth
 
-    <title>ALFA TZA LLP | HR Letter System</title>
+from groq import Groq
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+import os
+import tempfile
+import subprocess
+import platform
+import urllib.parse
 
-        :root {
-            --red: #ff1e2d;
-            --red-dark: #c70016;
-            --black: #050505;
-            --card: #111111;
-            --border: rgba(255, 255, 255, 0.08);
-            --muted: #a1a1aa;
-            --success: #22c55e;
-        }
+# =====================================================
+# APP CONFIG
+# =====================================================
 
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at top right, rgba(255, 30, 45, .22), transparent 25%),
-                radial-gradient(circle at bottom left, rgba(255, 30, 45, .14), transparent 22%),
-                linear-gradient(135deg, #000, #090909, #0d0d0d);
-            color: white;
-            padding: 24px;
-        }
+app = Flask(__name__, template_folder="templates")
+CORS(app)
 
-        .wrapper {
-            max-width: 1100px;
-            margin: auto;
-        }
+app.secret_key = os.environ.get("SECRET_KEY", "supersecret")
 
-        .card {
-            background: linear-gradient(145deg, #111, #0a0a0a);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 25px 70px rgba(0, 0, 0, .55);
-        }
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-        .topbar {
-            text-align: center;
-            padding: 30px;
-            border-bottom: 1px solid var(--border);
-        }
+# =====================================================
+# GROQ AI
+# =====================================================
 
-        .logo {
-            width: 160px;
-            margin-bottom: 14px;
-        }
+groq_client = Groq(
+    api_key=os.environ.get("Alfa_Letters")
+)
 
-        .title {
-            font-size: 32px;
-            font-weight: 800;
-        }
+# =====================================================
+# GOOGLE OAUTH
+# =====================================================
 
-        .title span {
-            color: var(--red);
-        }
+oauth = OAuth(app)
 
-        .subtitle {
-            margin-top: 8px;
-            font-size: 14px;
-            color: var(--muted);
-        }
+google = oauth.register(
+    name="google",
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"}
+)
 
-        .tabs {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            padding: 24px 24px 0;
-        }
+ALLOWED_EMAILS = ["hr@alfatza.com"]
 
-        .tab {
-            padding: 12px 18px;
-            border-radius: 12px;
-            background: #121212;
-            border: 1px solid var(--border);
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 700;
-            transition: .2s;
-        }
+# =====================================================
+# TEMPLATE FILES
+# =====================================================
 
-        .tab:hover {
-            border-color: rgba(255, 30, 45, .5);
-        }
+TEMPLATE_FILES = {
 
-        .tab.active {
-            background: linear-gradient(135deg, var(--red), var(--red-dark));
-            border: none;
-        }
+    # OFFER LETTERS
+    "offer_telecaller":
+        os.path.join(BASE_DIR, "templates_docx", "offer_telecaller.docx"),
 
-        .content {
-            padding: 30px;
-        }
+    "offer_team_leader":
+        os.path.join(BASE_DIR, "templates_docx", "offer_team_leader.docx"),
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
+    "offer_backend":
+        os.path.join(BASE_DIR, "templates_docx", "offer_backend.docx"),
 
-        .full {
-            grid-column: span 2;
-        }
+    "offer_hr":
+        os.path.join(BASE_DIR, "templates_docx", "offer_hr.docx"),
 
-        .field label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 13px;
-            font-weight: 700;
-        }
+    "offer_data_analyst":
+        os.path.join(BASE_DIR, "templates_docx", "offer_data_analyst.docx"),
 
-        .field input,
-        .field textarea,
-        .field select {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: #111;
-            color: white;
-            outline: none;
-            font-size: 14px;
-        }
+    # INCREMENT
+    "increment":
+        os.path.join(BASE_DIR, "templates_docx", "increment.docx"),
 
-        .field textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
+    # EXPERIENCE
+    "experience":
+        os.path.join(BASE_DIR, "templates_docx", "experience.docx"),
 
-        .field input:focus,
-        .field textarea:focus,
-        .field select:focus {
-            border-color: rgba(255, 30, 45, .7);
-            box-shadow: 0 0 0 3px rgba(255, 30, 45, .1);
-        }
+    # TERMINATION
+    "termination":
+        os.path.join(BASE_DIR, "templates_docx", "termination.docx"),
 
-        .hint {
-            margin-top: 6px;
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.5;
-        }
+    # ABSCOND
+    "abscond":
+        os.path.join(BASE_DIR, "templates_docx", "abscond.docx"),
+}
 
-        .ai-box {
-            margin-top: 24px;
-            padding: 20px;
-            border-radius: 18px;
-            background: #0e0e0e;
-            border: 1px solid rgba(255, 30, 45, .15);
-        }
+# =====================================================
+# BRANCHES
+# =====================================================
 
-        .ai-title {
-            font-size: 16px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            color: var(--red);
-        }
+BRANCHES = {
+    "vashi": "Vashi Branch Address",
+    "thane": "Thane Branch Address",
+    "virar": "Virar Branch Address"
+}
 
-        .ai-desc {
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 14px;
-            line-height: 1.6;
-        }
+# =====================================================
+# HELPERS
+# =====================================================
 
-        .btn {
-            width: 100%;
-            margin-top: 26px;
-            padding: 16px;
-            border: none;
-            border-radius: 14px;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--red), var(--red-dark));
-            color: white;
-            cursor: pointer;
-            font-size: 15px;
-            transition: .2s;
-        }
+def format_date(date_str):
+    return datetime.strptime(
+        date_str,
+        "%Y-%m-%d"
+    ).strftime("%d %B %Y")
 
-        .btn:hover {
-            transform: translateY(-1px);
-        }
 
-        .status {
-            margin-top: 16px;
-            text-align: center;
-            font-weight: 700;
-        }
+def replace_text(doc, values):
 
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 13px;
-            color: #777;
-        }
+    for para in doc.paragraphs:
+        for k, v in values.items():
+            if k in para.text:
+                para.text = para.text.replace(k, v)
 
-        .hidden {
-            display: none;
-        }
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for k, v in values.items():
+                    if k in cell.text:
+                        cell.text = cell.text.replace(k, v)
 
-        @media(max-width:720px) {
 
-            .grid {
-                grid-template-columns: 1fr;
+def convert_to_pdf(docx_path, output_dir):
+
+    libreoffice = "soffice"
+
+    if platform.system() == "Windows":
+        libreoffice = r"C:\Program Files\LibreOffice\program\soffice.exe"
+
+    subprocess.run([
+        libreoffice,
+        "--headless",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        output_dir,
+        docx_path
+    ], check=True)
+
+    return os.path.join(
+        output_dir,
+        os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
+    )
+
+
+def build_gmail_link(to, subject, body):
+
+    base = "https://mail.google.com/mail/?view=cm&fs=1"
+
+    params = {
+        "to": to,
+        "su": subject,
+        "body": body
+    }
+
+    return base + "&" + urllib.parse.urlencode(params)
+
+
+def generate_ai_content(letter_type, data):
+
+    prompt = f"""
+You are an HR legal letter writer.
+
+Write a professional {letter_type} letter paragraph.
+
+EMPLOYEE NAME:
+{data['name']}
+
+ROLE:
+{data['role']}
+
+BRANCH:
+{data['branch']}
+
+RAW NOTES:
+{data['ai_prompt']}
+
+Rules:
+- Professional HR tone
+- Formal English
+- 250-400 words
+- Do not use placeholders
+- Ready to paste directly into official company document
+"""
+
+    completion = groq_client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
             }
+        ],
+        temperature=0.7
+    )
 
-            .full {
-                grid-column: span 1;
-            }
+    return completion.choices[0].message.content
 
-            .tabs {
-                flex-direction: column;
-            }
 
-        }
-    </style>
-</head>
+def get_template_path(letter_type, role):
 
-<body>
+    if letter_type == "offer":
+        return TEMPLATE_FILES.get(f"offer_{role}")
 
-    <div class="wrapper">
+    return TEMPLATE_FILES.get(letter_type)
 
-        <div class="card">
 
-            <div class="topbar">
+def get_download_name(name, letter_type):
 
-                <img src="/static/logo.png" class="logo">
+    clean_type = letter_type.capitalize()
 
-                <div class="title">
-                    HR Letter <span>System</span>
-                </div>
+    return f"{name}_{clean_type}_Letter.pdf"
 
-                <div class="subtitle">
-                    One dashboard to automate HR paperwork. Humanity finally industrialized PDF suffering.
-                </div>
 
-            </div>
+# =====================================================
+# AUTH ROUTES
+# =====================================================
 
-            <!-- ========================= -->
-            <!-- TABS -->
-            <!-- ========================= -->
+@app.route("/login")
+def login():
+    return google.authorize_redirect(
+        url_for("authorize", _external=True)
+    )
 
-            <div class="tabs">
 
-                <div class="tab active" onclick="selectLetter('offer', this)">
-                    Offer Letter
-                </div>
+@app.route("/authorize")
+def authorize():
 
-                <div class="tab" onclick="selectLetter('increment', this)">
-                    Increment Letter
-                </div>
+    token = google.authorize_access_token()
 
-                <div class="tab" onclick="selectLetter('experience', this)">
-                    Experience Letter
-                </div>
+    user = token.get("userinfo")
 
-                <div class="tab" onclick="selectLetter('termination', this)">
-                    Termination Letter
-                </div>
+    if not user:
+        return "Login failed"
 
-                <div class="tab" onclick="selectLetter('abscond', this)">
-                    Abscond Letter
-                </div>
+    email = user.get("email")
 
-            </div>
+    if email not in ALLOWED_EMAILS:
+        return "Unauthorized"
 
-            <div class="content">
+    session["user"] = user
 
-                <form id="letterForm">
+    return redirect("/")
 
-                    <div class="grid">
 
-                        <div class="field full">
-                            <label>Candidate Name</label>
-                            <input id="name" placeholder="Full name">
-                        </div>
+@app.route("/logout")
+def logout():
 
-                        <div class="field">
-                            <label>Employee Code</label>
-                            <input id="employee_code">
-                        </div>
+    session.clear()
 
-                        <div class="field">
-                            <label>Phone</label>
-                            <input id="phone">
-                        </div>
+    return redirect("/")
 
-                        <div class="field">
-                            <label>Email</label>
-                            <input id="email" type="email">
-                        </div>
 
-                        <div class="field">
-                            <label>Salary</label>
-                            <input id="salary">
-                            <div class="hint">Auto formats ₹ values</div>
-                        </div>
+# =====================================================
+# HOME
+# =====================================================
 
-                        <div class="field">
-                            <label>Joining Date</label>
-                            <input type="date" id="joining">
-                        </div>
+@app.route("/")
+def home():
 
-                        <div class="field full">
-                            <label>Address</label>
-                            <textarea id="address"></textarea>
-                        </div>
+    if "user" not in session:
+        return redirect("/login")
 
-                        <div class="field">
-                            <label>Role</label>
+    return render_template(
+        "index.html",
+        user=session["user"]
+    )
 
-                            <select id="role">
-                                <option value="">Select</option>
-                                <option value="telecaller">Telecaller</option>
-                                <option value="team_leader">Team Leader</option>
-                                <option value="backend">Backend</option>
-                                <option value="hr">HR</option>
-                                <option value="data_analyst">Data Analyst</option>
-                            </select>
 
-                        </div>
+# =====================================================
+# MAIN GENERATE ROUTE
+# =====================================================
 
-                        <div class="field">
-                            <label>Branch</label>
+@app.route("/generate", methods=["POST"])
+def generate():
 
-                            <select id="branch">
-                                <option value="">Select</option>
-                                <option value="vashi">Vashi</option>
-                                <option value="thane">Thane</option>
-                                <option value="virar">Virar</option>
-                            </select>
+    try:
 
-                        </div>
+        if "user" not in session:
+            return jsonify({
+                "error": "Unauthorized"
+            }), 401
 
-                        <!-- ========================= -->
-                        <!-- INCREMENT ONLY -->
-                        <!-- ========================= -->
+        data = request.get_json()
 
-                        <div class="field hidden" id="incrementSalaryBox">
-                            <label>Incremented Salary</label>
-                            <input id="increment_salary" placeholder="New salary after increment">
-                        </div>
+        # =================================================
+        # BASIC REQUIRED
+        # =================================================
 
-                        <!-- ========================= -->
-                        <!-- AI SECTION -->
-                        <!-- ========================= -->
+        required = [
+            "name",
+            "employee_code",
+            "phone",
+            "email",
+            "address",
+            "role",
+            "branch",
+            "joining",
+            "letter_type"
+        ]
 
-                        <div class="full hidden" id="aiSection">
+        for field in required:
 
-                            <div class="ai-box">
+            if not data.get(field):
+                return jsonify({
+                    "error": f"Missing {field}"
+                }), 400
 
-                                <div class="ai-title">
-                                    AI Draft Assistant
-                                </div>
+        # =================================================
+        # OFFER / INCREMENT NEED SALARY
+        # =================================================
 
-                                <div class="ai-desc">
-                                    Write rough human chaos here. The AI will convert it into professional HR language
-                                    because corporations enjoy transforming disaster into paragraphs.
-                                </div>
+        if data["letter_type"] in ["offer", "increment"]:
 
-                                <div class="field">
-                                    <label>Raw Notes / Incident / Work Summary</label>
+            if not data.get("salary"):
+                return jsonify({
+                    "error": "Salary required"
+                }), 400
 
-                                    <textarea id="ai_prompt"
-                                        placeholder="Example:
+        # =================================================
+        # TEMPLATE
+        # =================================================
 
-Employee misbehaved with senior staff repeatedly, used abusive language during office hours, and damaged company property including office glass partition."></textarea>
-                                </div>
+        template_path = get_template_path(
+            data["letter_type"],
+            data["role"]
+        )
 
-                            </div>
+        if not template_path or not os.path.exists(template_path):
 
-                        </div>
+            return jsonify({
+                "error": "Template not found"
+            }), 500
 
-                    </div>
+        # =================================================
+        # LOAD DOC
+        # =================================================
 
-                    <button type="button" class="btn" id="generateBtn">
-                        Generate Letter
-                    </button>
+        doc = Document(template_path)
 
-                    <div class="status" id="status"></div>
+        # =================================================
+        # AI GENERATED CONTENT
+        # =================================================
 
-                </form>
+        ai_content = ""
 
-            </div>
+        if data["letter_type"] in [
+            "termination",
+            "abscond",
+            "experience"
+        ]:
 
-        </div>
+            ai_content = generate_ai_content(
+                data["letter_type"],
+                data
+            )
 
-        <div class="footer">
-            ALFA TZA LLP • Internal HR Automation System
-        </div>
+        # =================================================
+        # VALUES
+        # =================================================
 
-    </div>
+        values = {
 
-    <script>
+            "{{name}}":
+                data["name"],
 
-        // ======================================
-        // CURRENT LETTER TYPE
-        // ======================================
+            "{{employee_code}}":
+                data["employee_code"],
 
-        let currentLetter = "offer";
+            "{{phone}}":
+                data["phone"],
 
-        // ======================================
-        // TAB SWITCHING
-        // ======================================
+            "{{email}}":
+                data["email"],
 
-        function selectLetter(type, element) {
+            "{{address}}":
+                data["address"],
 
-            currentLetter = type;
+            "{{role}}":
+                data["role"].replace("_", " ").title(),
 
-            document.querySelectorAll(".tab").forEach(tab => {
-                tab.classList.remove("active");
-            });
+            "{{branch_address}}":
+                BRANCHES.get(data["branch"], ""),
 
-            element.classList.add("active");
+            "{{salary}}":
+                data.get("salary", ""),
 
-            const aiSection = document.getElementById("aiSection");
-            const incrementBox = document.getElementById("incrementSalaryBox");
-            const btn = document.getElementById("generateBtn");
+            "{{increment_salary}}":
+                data.get("increment_salary", ""),
 
-            // hide all optional sections
-            aiSection.classList.add("hidden");
-            incrementBox.classList.add("hidden");
+            "{{joining}}":
+                format_date(data["joining"]),
 
-            // AI letters
-            if (
-                type === "termination" ||
-                type === "abscond" ||
-                type === "experience"
-            ) {
-                aiSection.classList.remove("hidden");
-            }
+            "{{date}}":
+                datetime.now().strftime("%d %B %Y"),
 
-            // increment
-            if (type === "increment") {
-                incrementBox.classList.remove("hidden");
-            }
-
-            // button text
-            btn.innerText = `Generate ${capitalize(type)} Letter`;
-
+            "{{ai_content}}":
+                ai_content
         }
 
-        // ======================================
-        // CAPITALIZE
-        // ======================================
+        replace_text(doc, values)
 
-        function capitalize(text) {
-            return text.charAt(0).toUpperCase() + text.slice(1);
-        }
+        # =================================================
+        # SAVE FILE
+        # =================================================
 
-        // ======================================
-        // SALARY FORMAT
-        // ======================================
+        temp_dir = tempfile.mkdtemp()
 
-        document.getElementById("salary").addEventListener("input", function () {
+        safe_name = secure_filename(data["name"])
 
-            let raw = this.value
-                .replace(/,/g, "")
-                .replace(/\D/g, "");
+        file_base = f"{safe_name}_{data['letter_type']}"
 
-            this.value = raw
-                ? Number(raw).toLocaleString("en-IN")
-                : "";
+        docx_path = os.path.join(
+            temp_dir,
+            f"{file_base}.docx"
+        )
 
-        });
+        doc.save(docx_path)
 
-        // ======================================
-        // INCREMENT SALARY FORMAT
-        // ======================================
+        # =================================================
+        # CONVERT PDF
+        # =================================================
 
-        document.getElementById("increment_salary").addEventListener("input", function () {
+        pdf_path = convert_to_pdf(
+            docx_path,
+            temp_dir
+        )
 
-            let raw = this.value
-                .replace(/,/g, "")
-                .replace(/\D/g, "");
+        # =================================================
+        # MAIL SUBJECT + BODY
+        # =================================================
 
-            this.value = raw
-                ? Number(raw).toLocaleString("en-IN")
-                : "";
+        branch_name = data["branch"].capitalize()
 
-        });
+        letter_name = data["letter_type"].capitalize()
 
-        // ======================================
-        // GENERATE
-        // ======================================
+        subject = (
+            f"{letter_name} Letter "
+            f"- {branch_name} Branch"
+        )
 
-        async function generatePDF() {
+        body = f"""Dear {data['name']},
 
-            const status = document.getElementById("status");
+Please find attached your formal {letter_name} Letter for your records.
 
-            status.innerText =
-                `${capitalize(currentLetter)} Letter generation coming from backend soon...`;
+Kindly review the document carefully and acknowledge receipt.
 
-        }
+For any clarification, feel free to contact the HR department.
 
-        // button
-        document.getElementById("generateBtn")
-            .addEventListener("click", generatePDF);
+Warm regards,
+Rashid Ali
+H.R
+ALFA TZA LLP
+"""
 
-    </script>
+        gmail_link = build_gmail_link(
+            data["email"],
+            subject,
+            body
+        )
 
-</body>
+        # =================================================
+        # STORE DOWNLOAD
+        # =================================================
 
-</html>
+        session[file_base] = pdf_path
+
+        # =================================================
+        # RESPONSE
+        # =================================================
+
+        return jsonify({
+            "success": True,
+
+            "download_url":
+                f"/download/{file_base}",
+
+            "gmail_link":
+                gmail_link
+        })
+
+    except subprocess.CalledProcessError:
+
+        return jsonify({
+            "error": "PDF conversion failed"
+        }), 500
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# =====================================================
+# DOWNLOAD
+# =====================================================
+
+@app.route("/download/<filename>")
+def download(filename):
+
+    try:
+
+        pdf_path = session.get(filename)
+
+        if not pdf_path:
+            return "File not found", 404
+
+        clean_name = filename.replace("_", " ")
+
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=f"{clean_name}.pdf"
+        )
+
+    except Exception:
+        return "Download failed", 500
+
+
+# =====================================================
+# RUN
+# =====================================================
+
+if __name__ == "__main__":
+    app.run(debug=True)
