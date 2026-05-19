@@ -405,111 +405,283 @@ Employee misbehaved with senior staff repeatedly, used abusive language during o
     </div>
 
     <script>
-
-        // ======================================
-        // CURRENT LETTER TYPE
-        // ======================================
-
-        let currentLetter = "offer";
-
-        // ======================================
-        // TAB SWITCHING
-        // ======================================
-
-        function selectLetter(type, element) {
-
-            currentLetter = type;
-
-            document.querySelectorAll(".tab").forEach(tab => {
-                tab.classList.remove("active");
-            });
-
-            element.classList.add("active");
-
-            const aiSection = document.getElementById("aiSection");
-            const incrementBox = document.getElementById("incrementSalaryBox");
-            const btn = document.getElementById("generateBtn");
-
-            // hide all optional sections
-            aiSection.classList.add("hidden");
-            incrementBox.classList.add("hidden");
-
-            // AI letters
-            if (
-                type === "termination" ||
-                type === "abscond" ||
-                type === "experience"
-            ) {
-                aiSection.classList.remove("hidden");
-            }
-
-            // increment
-            if (type === "increment") {
-                incrementBox.classList.remove("hidden");
-            }
-
-            // button text
-            btn.innerText = `Generate ${capitalize(type)} Letter`;
-
-        }
-
-        // ======================================
-        // CAPITALIZE
-        // ======================================
-
-        function capitalize(text) {
-            return text.charAt(0).toUpperCase() + text.slice(1);
-        }
-
-        // ======================================
-        // SALARY FORMAT
-        // ======================================
-
-        document.getElementById("salary").addEventListener("input", function () {
-
-            let raw = this.value
-                .replace(/,/g, "")
-                .replace(/\D/g, "");
-
-            this.value = raw
-                ? Number(raw).toLocaleString("en-IN")
-                : "";
-
-        });
-
-        // ======================================
-        // INCREMENT SALARY FORMAT
-        // ======================================
-
-        document.getElementById("increment_salary").addEventListener("input", function () {
-
-            let raw = this.value
-                .replace(/,/g, "")
-                .replace(/\D/g, "");
-
-            this.value = raw
-                ? Number(raw).toLocaleString("en-IN")
-                : "";
-
-        });
-
-        // ======================================
-        // GENERATE
-        // ======================================
-
-        async function generatePDF() {
-
-            const status = document.getElementById("status");
-
-            status.innerText =
-                `${capitalize(currentLetter)} Letter generation coming from backend soon...`;
-
-        }
-
-        // button
-        document.getElementById("generateBtn")
-            .addEventListener("click", generatePDF);
-
+    
+    // ======================================
+    // CURRENT LETTER TYPE
+    // ======================================
+    
+    let currentLetter = "offer";
+    
+    // ======================================
+    // TAB SWITCHING
+    // ======================================
+    
+    function selectLetter(type, element){
+    
+    currentLetter = type;
+    
+    document.querySelectorAll(".tab").forEach(tab=>{
+    tab.classList.remove("active");
+    });
+    
+    element.classList.add("active");
+    
+    const aiSection = document.getElementById("aiSection");
+    const incrementBox = document.getElementById("incrementSalaryBox");
+    const btn = document.getElementById("generateBtn");
+    
+    aiSection.classList.add("hidden");
+    incrementBox.classList.add("hidden");
+    
+    if(
+    type === "termination" ||
+    type === "abscond" ||
+    type === "experience"
+    ){
+    aiSection.classList.remove("hidden");
+    }
+    
+    if(type === "increment"){
+    incrementBox.classList.remove("hidden");
+    }
+    
+    btn.innerText = `Generate ${capitalize(type)} Letter`;
+    
+    }
+    
+    // ======================================
+    // CAPITALIZE
+    // ======================================
+    
+    function capitalize(text){
+    return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+    
+    // ======================================
+    // SALARY FORMAT
+    // ======================================
+    
+    document.getElementById("salary").addEventListener("input", function(){
+    
+    let raw=this.value
+    .replace(/,/g,"")
+    .replace(/\D/g,"");
+    
+    this.value=raw
+    ? Number(raw).toLocaleString("en-IN")
+    : "";
+    
+    });
+    
+    // ======================================
+    // INCREMENT FORMAT
+    // ======================================
+    
+    document.getElementById("increment_salary").addEventListener("input", function(){
+    
+    let raw=this.value
+    .replace(/,/g,"")
+    .replace(/\D/g,"");
+    
+    this.value=raw
+    ? Number(raw).toLocaleString("en-IN")
+    : "";
+    
+    });
+    
+    // ======================================
+    // GENERATE PDF
+    // ======================================
+    
+    async function generatePDF(){
+    
+    const btn=document.getElementById("generateBtn");
+    const status=document.getElementById("status");
+    
+    const data={
+    
+    letter_type: currentLetter,
+    
+    name:
+    document.getElementById("name").value.trim(),
+    
+    employee_code:
+    document.getElementById("employee_code").value.trim(),
+    
+    phone:
+    document.getElementById("phone").value.trim(),
+    
+    email:
+    document.getElementById("email").value.trim(),
+    
+    address:
+    document.getElementById("address").value.trim(),
+    
+    role:
+    document.getElementById("role").value,
+    
+    branch:
+    document.getElementById("branch").value,
+    
+    salary:
+    document.getElementById("salary").value.replace(/,/g,""),
+    
+    increment_salary:
+    document.getElementById("increment_salary").value.replace(/,/g,""),
+    
+    joining:
+    document.getElementById("joining").value,
+    
+    ai_prompt:
+    document.getElementById("ai_prompt").value.trim()
+    
+    };
+    
+    // ======================================
+    // VALIDATION
+    // ======================================
+    
+    if(
+    !data.name ||
+    !data.employee_code ||
+    !data.phone ||
+    !data.email ||
+    !data.address ||
+    !data.role ||
+    !data.branch ||
+    !data.joining
+    ){
+    
+    status.style.color="#ff4d5d";
+    status.innerText="Fill all required fields.";
+    
+    return;
+    
+    }
+    
+    if(
+    (currentLetter==="offer" || currentLetter==="increment")
+    && !data.salary
+    ){
+    
+    status.style.color="#ff4d5d";
+    status.innerText="Salary is required.";
+    
+    return;
+    
+    }
+    
+    if(
+    (currentLetter==="termination" ||
+    currentLetter==="experience" ||
+    currentLetter==="abscond")
+    && !data.ai_prompt
+    ){
+    
+    status.style.color="#ff4d5d";
+    status.innerText="AI prompt is required.";
+    
+    return;
+    
+    }
+    
+    // ======================================
+    // LOADING
+    // ======================================
+    
+    btn.disabled=true;
+    btn.innerText="Generating...";
+    status.style.color="white";
+    status.innerText="Generating PDF and AI content...";
+    
+    // ======================================
+    // API CALL
+    // ======================================
+    
+    try{
+    
+    const response = await fetch("/generate",{
+    
+    method:"POST",
+    
+    headers:{
+    "Content-Type":"application/json"
+    },
+    
+    body:JSON.stringify(data)
+    
+    });
+    
+    const result = await response.json();
+    
+    if(!response.ok){
+    
+    throw new Error(
+    result.error || "Generation failed"
+    );
+    
+    }
+    
+    // ======================================
+    // DOWNLOAD
+    // ======================================
+    
+    window.open(result.download_url, "_blank");
+    
+    // ======================================
+    // GMAIL
+    // ======================================
+    
+    setTimeout(()=>{
+    
+    window.open(result.gmail_link, "_blank");
+    
+    },700);
+    
+    // ======================================
+    // SUCCESS
+    // ======================================
+    
+    status.style.color="#22c55e";
+    status.innerText=
+    `${capitalize(currentLetter)} Letter generated successfully.`;
+    
+    // ======================================
+    // RESET
+    // ======================================
+    
+    setTimeout(()=>{
+    
+    document.getElementById("letterForm").reset();
+    
+    },1200);
+    
+    }catch(error){
+    
+    status.style.color="#ff4d5d";
+    
+    status.innerText=error.message;
+    
+    }
+    
+    // ======================================
+    // RESET BUTTON
+    // ======================================
+    
+    btn.disabled=false;
+    
+    btn.innerText=
+    `Generate ${capitalize(currentLetter)} Letter`;
+    
+    }
+    
+    // ======================================
+    // BUTTON EVENT
+    // ======================================
+    
+    document.getElementById("generateBtn")
+    .addEventListener("click", generatePDF);
+    
     </script>
 
 </body>
