@@ -172,9 +172,8 @@ def build_gmail_link(to, subject, body):
 def generate_ai_content(letter_type, data):
 
     prompt = f"""
-You are an HR legal letter writer.
-
-Write a professional {letter_type} letter paragraph.
+You are writing ONLY the additional explanatory content section
+for an HR {letter_type} letter.
 
 EMPLOYEE NAME:
 {data['name']}
@@ -188,12 +187,18 @@ BRANCH:
 RAW NOTES:
 {data['ai_prompt']}
 
-Rules:
+STRICT RULES:
+- Write exactly 2 short paragraphs
+- Each paragraph must be only 2 lines
+- No introduction
+- No greetings
+- No conclusion
+- No headings
+- No placeholders
+- Only elaboration/explanation content
 - Professional HR tone
 - Formal English
-- 250-400 words
-- Do not use placeholders
-- Ready to paste directly into official company document
+- Output plain text only
 """
 
     completion = groq_client.chat.completions.create(
@@ -204,7 +209,7 @@ Rules:
                 "content": prompt
             }
         ],
-        temperature=0.7
+        temperature=0.4
     )
 
     return completion.choices[0].message.content
