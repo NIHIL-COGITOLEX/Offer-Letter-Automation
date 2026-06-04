@@ -102,8 +102,8 @@ TEMPLATE_FILES = {
 # =====================================================
 
 BRANCHES = {
-    "vashi": "Vashi Branch Address",
-    "thane": "Thane Branch Address",
+    "vashi": "3rd Floor, Vashi plaza, Alfa TZA LLP, D wing-512, Plot No. 80/81, Sector 17, Vashi, Navi Mumbai, Maharashtra 400703",
+    "thane": "B-102, B-Wing, Rajdarshan CHS Ltd,Dada Patil Wadi, Opposite Thane Railway Station,Thane - 400602",
     "virar": "Virar Branch Address"
 }
 
